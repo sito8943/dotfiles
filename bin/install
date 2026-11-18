@@ -47,21 +47,23 @@ ask() {
 }
 
 # link SOURCE TARGET — back up TARGET (file, dir or foreign symlink) and symlink it to SOURCE.
+pretty() { case "$1" in "$HOME"*) echo "~${1#"$HOME"}" ;; *) echo "$1" ;; esac; }
+
 link() {
     local source="$1" target="$2"
     if [ -L "$target" ] && [ "$(readlink "$target")" = "$source" ]; then
-        echo "  = ${target/#$HOME/\~}"
+        echo "  = $(pretty "$target")"
         return
     fi
     if [ -e "$target" ] || [ -L "$target" ]; then
         local rel="${target#$HOME/}"
         run mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
         run mv "$target" "$BACKUP_DIR/$rel"
-        echo "  ↺ backed up ${target/#$HOME/\~}"
+        echo "  ↺ backed up $(pretty "$target")"
     fi
     run mkdir -p "$(dirname "$target")"
     run ln -s "$source" "$target"
-    echo "  → ${target/#$HOME/\~}"
+    echo "  → $(pretty "$target")"
 }
 
 echo ""
@@ -157,7 +159,7 @@ fi
 
 echo ""
 success "Done."
-[ -d "$BACKUP_DIR" ] && echo "  Backups: ${BACKUP_DIR/#$HOME/~}"
+[ -d "$BACKUP_DIR" ] && echo "  Backups: $(pretty "$BACKUP_DIR")"
 echo "  Machine-only settings: ~/.dotfiles-custom/shell/.zshrc and ~/.dotfiles-custom/.gitconfig"
 echo "  Reload: exec zsh"
 echo ""
