@@ -25,3 +25,17 @@ theme = "Catppuccin Mocha"
 
 # Cmd+/ -> abre la lista de hotkeys en nvim (manda Esc + comando).
 keybind = super+slash=text:\x1b:Telescope keymaps\r
+
+# --- Agentes (Claude Code, etc.) ---
+# Bell del agente -> notificación macOS + Dock + título + borde
+bell-features = system,attention,title,border
+
+# SSH: copia terminfo xterm-ghostty al remoto (evita TERM roto en servidores)
+shell-integration-features = ssh-env,ssh-terminfo
+
+# Aviso si un comando largo termina con la ventana sin foco
+notify-on-command-finish = unfocused
+notify-on-command-finish-after = 30s
+
+# Terminal desplegable global (requiere permiso de Accesibilidad)
+keybind = global:ctrl+grave_accent=toggle_quick_terminal
