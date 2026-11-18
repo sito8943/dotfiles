@@ -39,3 +39,6 @@ notify-on-command-finish-after = 30s
 
 # Terminal desplegable global (requiere permiso de Accesibilidad)
 keybind = global:ctrl+alt+space=toggle_quick_terminal
+
+# Renombrar pestaña (Cmd+Shift+R)
+keybind = super+shift+r=prompt_tab_title
