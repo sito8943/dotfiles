@@ -1,0 +1,43 @@
+#!/bin/bash
+#
+# Install (or reinstall) the LaunchAgent that runs bin/dotfiles-autosync at every login.
+#   bin/install-dotfiles-autosync            install + start
+#   bin/install-dotfiles-autosync --remove   stop + uninstall
+
+set -euo pipefail
+
+LABEL="com.sito8943.dotfiles-autosync"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+DOMAIN="gui/$(id -u)"
+SCRIPT="$HOME/.dotfiles/bin/dotfiles-autosync"
+LOG="$HOME/Library/Logs/dotfiles-autosync.log"
+
+launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
+
+if [ "${1:-}" = "--remove" ]; then
+    rm -f "$PLIST"
+    echo "Removed $LABEL"
+    exit 0
+fi
+
+mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
+cat > "$PLIST" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>$LABEL</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>$SCRIPT</string>
+    </array>
+    <key>RunAtLoad</key><true/>
+    <key>StandardOutPath</key><string>$LOG</string>
+    <key>StandardErrorPath</key><string>$LOG</string>
+</dict>
+</plist>
+PLIST
+
+launchctl bootstrap "$DOMAIN" "$PLIST"
+echo "Installed $LABEL (runs at every login). Log: ${LOG/#$HOME/~}"

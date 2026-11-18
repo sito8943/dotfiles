@@ -1,0 +1,58 @@
+#!/bin/bash
+#
+# Commit and push changes to tracked dotfiles. Runs at login via a LaunchAgent
+# (bin/install-dotfiles-autosync), or by hand.
+#
+# Safety:
+#   - Only files git already tracks are committed (git add -u). New files never
+#     get published by accident; add them yourself.
+#   - If the diff looks like it contains a secret (token, key, password), it
+#     aborts, notifies you, and commits nothing.
+#   - Pushes with the sito8943 account (GH_CONFIG_DIR=~/.config/gh1).
+
+set -uo pipefail
+
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+export GH_CONFIG_DIR="${GH_CONFIG_DIR:-$HOME/.config/gh1}"
+REPO="$(cd "$(dirname "$(readlink "${BASH_SOURCE[0]}" || echo "${BASH_SOURCE[0]}")")/.." && pwd)"
+
+log()    { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
+notify() { osascript -e "display notification \"$1\" with title \"Dotfiles autosync\"" 2>/dev/null || true; }
+fail()   { log "ERROR: $1"; notify "$1"; exit 1; }
+
+cd "$REPO" || fail "Repo not found: $REPO"
+
+# Wait for network (login can be before Wi-Fi is up): up to ~2 minutes.
+for _ in $(seq 1 24); do
+    /sbin/ping -c 1 -t 2 github.com >/dev/null 2>&1 && break
+    sleep 5
+done
+
+branch="$(git symbolic-ref --short HEAD 2>/dev/null)" || fail "Detached HEAD, skipping"
+[ "$branch" = main ] || { log "On branch $branch, not main: skipping"; exit 0; }
+
+git add -u
+
+if git diff --cached --quiet; then
+    log "No changes"
+else
+    # Secret scan on added lines only.
+    if git diff --cached -U0 | grep -E '^\+' | grep -v '^+++' | grep -qiE \
+        'gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|xox[abpr]-|-----BEGIN [A-Z ]*PRIVATE KEY|(api[_-]?key|secret|token|passw(or)?d)[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9/+_-]{12,}'; then
+        git reset -q
+        fail "Possible secret in the diff: nothing committed. Review with: cd ~/.dotfiles && git diff"
+    fi
+
+    files="$(git diff --cached --name-only | tr '\n' ' ')"
+    git commit -q -m "Autosync $(date '+%Y-%m-%d %H:%M'): $files" || fail "Commit failed"
+    log "Committed: $files"
+fi
+
+# Bring in anything pushed from elsewhere, then push.
+git pull -q --rebase --autostash origin main || fail "Pull failed (conflict?). Run: cd ~/.dotfiles && git status"
+
+if [ -n "$(git log origin/main..HEAD --oneline 2>/dev/null)" ]; then
+    git push -q origin main || fail "Push failed. Run: cd ~/.dotfiles && git push"
+    log "Pushed"
+    notify "Dotfiles changes pushed to GitHub"
+fi
