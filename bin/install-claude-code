@@ -38,21 +38,23 @@ ask() {
     [[ $reply =~ ^[Yy]$ ]]
 }
 
+pretty() { case "$1" in "$HOME"*) echo "~${1#"$HOME"}" ;; *) echo "$1" ;; esac; }
+
 link() {
     local source="$1" target="$2"
     if [ -L "$target" ] && [ "$(readlink "$target")" = "$source" ]; then
-        echo "  = ${target/#$HOME/\~}"
+        echo "  = $(pretty "$target")"
         return
     fi
     if [ -e "$target" ] || [ -L "$target" ]; then
         local rel="${target#$HOME/}"
         run mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
         run mv "$target" "$BACKUP_DIR/$rel"
-        echo "  ↺ backed up ${target/#$HOME/\~}"
+        echo "  ↺ backed up $(pretty "$target")"
     fi
     run mkdir -p "$(dirname "$target")"
     run ln -s "$source" "$target"
-    echo "  → ${target/#$HOME/\~}"
+    echo "  → $(pretty "$target")"
 }
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
@@ -72,7 +74,13 @@ success "Config linked (settings.json left untouched)"
 
 # ── Optional: repo skills/agents, one link each, never replacing yours ───────
 step "Repo skills & agents"
-if ask "Link skills/agents from config/claude that you don't already have?"; then
+# Always asks, even with --yes: there are ~95 upstream skills and most are not mine.
+reply=n
+if [ -t 0 ]; then
+    read -r -p "Link skills/agents from config/claude that you don't already have? (y/n) " -n 1 reply
+    echo ""
+fi
+if [[ $reply =~ ^[Yy]$ ]]; then
     for kind in skills agents; do
         [ -d "$SRC/$kind" ] || continue
         run mkdir -p "$HOME/.claude/$kind"
@@ -92,5 +100,5 @@ else
 fi
 
 echo ""
-[ -d "$BACKUP_DIR" ] && echo "  Backups: ${BACKUP_DIR/#$HOME/~}"
+[ -d "$BACKUP_DIR" ] && echo "  Backups: $(pretty "$BACKUP_DIR")"
 success "Claude Code setup complete"
