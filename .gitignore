@@ -19,3 +19,4 @@ config/claude/skills/spatie-product-stats
 config/claude/skills/synced/
 config/claude/skills/.trash/
 __pycache__/
+home/.vim/.netrwhist

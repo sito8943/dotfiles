@@ -1,54 +1,53 @@
-# Dotfiles Brewfile
-# Install with: brew bundle --file=~/.dotfiles/Brewfile
+# Brewfile — install with: brew bundle --file="$DOTFILES/config/Brewfile"
+# Node comes from nvm (installed by bin/install), not Homebrew.
 
 # Core tools
-brew "node"
+brew "git"
 brew "php"
 brew "composer"
-brew "pkg-config"
+brew "git-lfs"
+brew "gh"
 brew "wget"
 brew "httpie"
 brew "ncdu"
-brew "hub"
-brew "gh"
-brew "ack"
-brew "doctl"
-cask "1password-cli"
-brew "git-secret"
 brew "imagemagick"
-brew "mysql"
-brew "yarn"
 brew "ghostscript"
-brew "mackup"
+brew "mysql"
+brew "python"
+brew "tmux"
+brew "neovim"
 
-# Zsh
+# Zsh (oh-my-zsh plugins are cloned by bin/install; these are the brew fallbacks)
 brew "zsh-autosuggestions"
+brew "zsh-syntax-highlighting"
 
 # Modern CLI tools
-brew "starship"
 brew "zoxide"
 brew "bat"
 brew "eza"
 brew "ripgrep"
 brew "fd"
 brew "git-delta"
-brew "fnm"
 brew "fzf"
 brew "direnv"
 brew "jq"
 brew "yq"
 brew "bottom"
 
-# Development tools
-cask "claude-code"
-cask "zed"
+# Fonts
+cask "font-jetbrains-mono-nerd-font"
+
+# Apps
+cask "iterm2"
+cask "ghostty"
+cask "visual-studio-code"
+cask "docker"
+cask "codex"
+cask "stats"
+# Claude Code uses the native installer (bin/install-claude-code), not the cask.
 
 # QuickLook plugins
-cask "qlcolorcode"
-cask "qlstephen"
 cask "qlmarkdown"
 cask "quicklook-json"
-cask "qlprettypatch"
 cask "quicklook-csv"
-cask "betterzip"
-cask "suspicious-package"
+cask "qlstephen"

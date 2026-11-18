@@ -4,6 +4,8 @@
 
 set -e
 
+DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 # Colors
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'
@@ -20,26 +22,21 @@ echo ""
 
 # Update dotfiles repo
 step "Pulling latest changes"
-git -C ~/.dotfiles pull origin main
+git -C "$DOTFILES" pull --ff-only
 success "Dotfiles updated"
 
 # Update Homebrew and packages
 step "Updating Homebrew packages"
 brew update
 brew upgrade
-brew bundle --file=~/.dotfiles/config/Brewfile
+brew bundle --file="$DOTFILES/config/Brewfile" || true
 brew cleanup
 success "Homebrew packages updated"
 
-# Update global npm packages
-step "Updating global npm packages"
-npm update -g
-success "npm packages updated"
-
-# Update global Composer packages
-step "Updating global Composer packages"
-composer global update
-success "Composer packages updated"
+# Oh My Zsh
+step "Updating Oh My Zsh"
+"$HOME/.oh-my-zsh/tools/upgrade.sh" || true
+success "Oh My Zsh updated"
 
 # Reload shell config
 echo ""

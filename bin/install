@@ -1,146 +1,163 @@
 #!/bin/bash
 #
-# Install dotfiles
+# Install dotfiles on this Mac.
+#
+#   bin/install            interactive: asks before every section
+#   bin/install --dry-run  print what would happen, change nothing
+#   bin/install --yes      answer "yes" to every section
+#
+# Anything replaced is first moved to ~/.dotfiles-backup/<timestamp>/.
 
-set -e  # Exit on error (but we use || true for optional steps)
+set -euo pipefail
 
-# Colors
-BLUE='\033[0;34m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m'
+DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BACKUP_DIR="$HOME/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)"
+DRY_RUN=0
+ASSUME_YES=0
 
-step() { echo ""; echo -e "${BLUE}➜${NC} $1"; }
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run|-n) DRY_RUN=1 ;;
+        --yes|-y)     ASSUME_YES=1 ;;
+        -h|--help)    sed -n 3,9p "$0"; exit 0 ;;
+        *) echo "Unknown option: $arg" >&2; exit 1 ;;
+    esac
+done
+
+BLUE='\033[0;34m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
+step()    { echo ""; echo -e "${BLUE}➜${NC} $1"; }
 success() { echo -e "${GREEN}✓${NC} $1"; }
-warn() { echo -e "${YELLOW}⚠${NC} $1"; }
-error() { echo -e "${RED}✗${NC} $1"; exit 1; }
+warn()    { echo -e "${YELLOW}⚠${NC} $1"; }
+
+# Run a command, or only print it in dry-run mode.
+run() {
+    if [ "$DRY_RUN" = 1 ]; then
+        echo "  [dry-run] $*"
+    else
+        "$@"
+    fi
+}
+
+ask() {
+    [ "$ASSUME_YES" = 1 ] && return 0
+    local reply
+    read -r -p "$1 (y/n) " -n 1 reply
+    echo ""
+    [[ $reply =~ ^[Yy]$ ]]
+}
+
+# link SOURCE TARGET — back up TARGET (file, dir or foreign symlink) and symlink it to SOURCE.
+link() {
+    local source="$1" target="$2"
+    if [ -L "$target" ] && [ "$(readlink "$target")" = "$source" ]; then
+        echo "  = ${target/#$HOME/\~}"
+        return
+    fi
+    if [ -e "$target" ] || [ -L "$target" ]; then
+        local rel="${target#$HOME/}"
+        run mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
+        run mv "$target" "$BACKUP_DIR/$rel"
+        echo "  ↺ backed up ${target/#$HOME/\~}"
+    fi
+    run mkdir -p "$(dirname "$target")"
+    run ln -s "$source" "$target"
+    echo "  → ${target/#$HOME/\~}"
+}
 
 echo ""
-step "Install Dotfiles"
-echo ""
-warn "This will install/update your terminal setup"
-echo ""
-read -p "Continue? (y/n) " -n 1 -r
-echo ""
+echo "Dotfiles: $DOTFILES"
+[ "$DRY_RUN" = 1 ] && warn "Dry run: nothing will be changed"
 
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo ""
-    step "Cancelled"
-    echo ""
-    exit 0
+# ── ~/.dotfiles symlink ──────────────────────────────────────────────────────
+# Every config refers to ~/.dotfiles, so it must point at this checkout.
+if [ "$DOTFILES" != "$HOME/.dotfiles" ]; then
+    step "Linking ~/.dotfiles → $DOTFILES"
+    link "$DOTFILES" "$HOME/.dotfiles"
 fi
 
-echo ""
-sudo -v
-
-# Start
-touch ~/.hushlogin
-step "Installing Oh My Zsh"
-if [ ! -d ~/.oh-my-zsh ]; then
-    rm -rf ~/.oh-my-zsh
-    curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh | sh -s -- --unattended || warn "Oh My Zsh installation failed"
-fi
-success "Oh My Zsh installed"
-
-# Git configuration
-step "Configuring Git"
-ln -sf ~/.dotfiles/home/.gitconfig ~/.gitconfig
-ln -sf ~/.dotfiles/home/.global-gitignore ~/.global-gitignore
-success "Git configured"
-
-# Symlinks
-step "Creating symlinks"
-rm -f ~/.zshrc ~/.vimrc ~/.vim ~/.mackup.cfg
-ln -sf ~/.dotfiles/home/.zshrc ~/.zshrc
-ln -sf ~/.dotfiles/home/.vimrc ~/.vimrc
-ln -sf ~/.dotfiles/home/.vim ~/.vim
-ln -sf ~/.dotfiles/macos/.mackup.cfg ~/.mackup.cfg
-mkdir -p ~/bin
-ln -sf ~/.dotfiles/bin/php-format ~/bin/php-format
-mkdir -p ~/.config/zed
-ln -sf ~/.dotfiles/config/zed/settings.json ~/.config/zed/settings.json
-ln -sf ~/.dotfiles/config/zed/keymap.json ~/.config/zed/keymap.json
-mkdir -p ~/.config/ghostty
-ln -sf ~/.dotfiles/config/ghostty/config ~/.config/ghostty/config
-success "Symlinks created"
-
-# NPM setup
-step "Configuring npm"
-mkdir -p ~/.npm-packages
-npm config set prefix ~/.npm-packages || warn "npm config failed"
-success "npm configured"
-
-# Homebrew
-step "Installing Homebrew"
+# ── Homebrew ─────────────────────────────────────────────────────────────────
 if ! command -v brew &>/dev/null; then
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
-    eval "$(/opt/homebrew/bin/brew shellenv)"
+    step "Homebrew"
+    if ask "Homebrew is missing. Install it?"; then
+        run /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        [ "$DRY_RUN" = 0 ] && eval "$(/opt/homebrew/bin/brew shellenv)"
+    fi
 fi
-success "Homebrew installed"
 
-# Install all packages from Brewfile
-step "Installing packages from Brewfile"
-brew bundle --file=~/.dotfiles/config/Brewfile || warn "Some packages failed (likely already installed)"
-success "Brewfile processed"
+if command -v brew &>/dev/null; then
+    step "Brewfile packages"
+    if ask "Install missing packages from config/Brewfile?"; then
+        run brew bundle --file="$DOTFILES/config/Brewfile" || warn "Some entries failed (often apps already installed outside Homebrew)"
+    fi
+fi
 
-# fnm - Node.js version manager
-step "Setting up fnm"
-eval "$(fnm env --use-on-cd)" || warn "fnm activation failed"
-fnm install --lts || warn "fnm install failed"
-fnm use lts-latest || warn "fnm use failed"
-success "fnm configured"
+# ── Oh My Zsh + plugins ──────────────────────────────────────────────────────
+step "Oh My Zsh"
+if [ ! -d "$HOME/.oh-my-zsh" ]; then
+    if ask "Install Oh My Zsh?"; then
+        run sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended --keep-zshrc
+    fi
+fi
+OMZ_PLUGINS="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins"
+for plugin in zsh-autosuggestions zsh-syntax-highlighting; do
+    if [ -d "$HOME/.oh-my-zsh" ] && [ ! -d "$OMZ_PLUGINS/$plugin" ]; then
+        run git clone --depth 1 "https://github.com/zsh-users/$plugin" "$OMZ_PLUGINS/$plugin"
+    fi
+done
+success "Oh My Zsh ready"
 
-# PHP extensions
-step "Installing PHP extensions"
-pecl install imagick 2>/dev/null || warn "imagick already installed or failed"
-pecl install memcached 2>/dev/null || warn "memcached already installed or failed"
-pecl install xdebug 2>/dev/null || warn "xdebug already installed or failed"
-pecl install redis 2>/dev/null || warn "redis already installed or failed"
-success "PHP extensions processed"
+# ── Shell, git, editor, terminal configs ─────────────────────────────────────
+step "Shell & git config"
+if ask "Symlink .zshrc, .gitconfig, .global-gitignore?"; then
+    link "$DOTFILES/home/.zshrc"            "$HOME/.zshrc"
+    link "$DOTFILES/home/.gitconfig"        "$HOME/.gitconfig"
+    link "$DOTFILES/home/.global-gitignore" "$HOME/.global-gitignore"
+    run touch "$HOME/.hushlogin"
+    run mkdir -p "$HOME/.dotfiles-custom/shell"
+    success "Shell & git linked"
+fi
 
-# Global npm packages
-step "Installing global npm packages"
-npm install -g agent-browser || warn "agent-browser already installed or failed"
-agent-browser install 2>/dev/null || warn "agent-browser setup skipped"
-success "npm packages processed"
+step "Terminal config (Ghostty, tmux)"
+if ask "Symlink ~/.config/ghostty/config and ~/.tmux.conf?"; then
+    link "$DOTFILES/config/ghostty/config" "$HOME/.config/ghostty/config"
+    link "$DOTFILES/config/tmux.conf"      "$HOME/.tmux.conf"
+    success "Terminal config linked"
+fi
 
-# Global Composer packages
-step "Installing global Composer packages"
-composer global require laravel/pint || warn "pint already installed or failed"
-composer global require laravel/envoy || warn "envoy already installed or failed"
-composer global require spatie/phpunit-watcher || warn "phpunit-watcher already installed or failed"
-composer global require laravel/valet || warn "valet already installed or failed"
-valet install || warn "valet already installed or failed"
-success "Composer packages processed"
-
-# MySQL
-step "Starting MySQL"
-brew services start mysql || warn "MySQL already running or failed"
-success "MySQL processed"
-
-# Spotlight exclusions
-bash ~/.dotfiles/bin/exclude-from-spotlight || warn "Spotlight exclusions had issues"
-
-# Claude Code setup
-echo ""
-read -p "Install Claude Code? (y/n) " -n 1 -r
-echo ""
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    bash ~/.dotfiles/bin/install-claude-code || warn "Claude Code setup had issues"
+# ── Node via nvm ─────────────────────────────────────────────────────────────
+step "Node (nvm)"
+if [ ! -s "$HOME/.nvm/nvm.sh" ]; then
+    if ask "nvm is missing. Install it with the LTS Node?"; then
+        run bash -c 'curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | PROFILE=/dev/null bash'
+        run bash -c '. "$HOME/.nvm/nvm.sh" && nvm install --lts && nvm alias default lts/*'
+    fi
 else
-    warn "Skipping Claude Code installation"
+    success "nvm already installed"
 fi
 
-# Done
+# ── Spotlight exclusions ─────────────────────────────────────────────────────
+step "Spotlight exclusions"
+if ask "Keep heavy dev folders out of Spotlight?"; then
+    run bash "$DOTFILES/bin/exclude-from-spotlight" || warn "Spotlight exclusions had issues"
+fi
+
+# ── macOS defaults ───────────────────────────────────────────────────────────
+step "macOS defaults"
+if [ "$DRY_RUN" = 1 ]; then
+    echo "  [dry-run] would offer macos/set-defaults.sh (asks again before running)"
+elif ask "Apply macOS defaults (Finder, Dock, keyboard…)? Review macos/set-defaults.sh first"; then
+    bash "$DOTFILES/macos/set-defaults.sh"
+fi
+
+# ── Claude Code ──────────────────────────────────────────────────────────────
+step "Claude Code"
+if ask "Set up Claude Code config?"; then
+    DRY_RUN=$DRY_RUN ASSUME_YES=$ASSUME_YES bash "$DOTFILES/bin/install-claude-code"
+fi
+
 echo ""
-success "Installation complete!"
-echo ""
-step "Next steps:"
-echo "  • Restore settings: mackup restore (if you have backups)"
-echo "  • Customize aliases: ~/.dotfiles-custom/shell/.aliases"
-echo ""
-echo "Optional:"
-echo "  • Discover more agent skills: https://skills.sh"
+success "Done."
+[ -d "$BACKUP_DIR" ] && echo "  Backups: ${BACKUP_DIR/#$HOME/~}"
+echo "  Machine-only settings: ~/.dotfiles-custom/shell/.zshrc and ~/.dotfiles-custom/.gitconfig"
+echo "  Reload: exec zsh"
 echo ""

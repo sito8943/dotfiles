@@ -1,8 +1,26 @@
-term = xterm-256color
-working-directory = /Users/freek/dev/code
+# Ghostty — config para nvim / dev
+
+# Fuente con iconos (nvim-tree, devicons)
+font-family = JetBrainsMono Nerd Font
+font-size = 14
+
+# CLAVE: Option = Alt -> hace funcionar Alt+flechas, Alt+a, etc. en nvim
+macos-option-as-alt = true
+
+# Cursor
 cursor-style = block
-shell-integration-features = no-cursor
-palette = 2=#5ccd86
-unfocused-split-opacity = 0.55
-unfocused-split-fill = #7a7a7a
-split-divider-color = #000000
+cursor-style-blink = false
+
+# Ventana
+window-padding-x = 8
+window-padding-y = 6
+macos-titlebar-style = tabs
+
+# Scrollback
+scrollback-limit = 50000
+
+# Tema oscuro (cambia con: ghostty +list-themes)
+theme = "Catppuccin Mocha"
+
+# Cmd+/ -> abre la lista de hotkeys en nvim (manda Esc + comando).
+keybind = super+slash=text:\x1b:Telescope keymaps\r

@@ -106,6 +106,24 @@ function claude-yolo() {
   claude --dangerously-skip-permissions "$@"
 }
 
+# Claude Code: Harbour.Space tools only under HSCode/work (gstack skills, Harbour plugins,
+# GitLab, claude.ai connectors like Figma and Linear). Everywhere else, none of them.
+function claude() {
+  local work="$HOME/Documents/HSCode/work"
+  # Subcommands (claude mcp …, claude update…) don't take --settings / --add-dir: pass them through.
+  case "$1" in
+    mcp|config|doctor|update|install|plugin|plugins|migrate-installer|setup-token|auth|agents|-v|--version|-h|--help)
+      command claude "$@"
+      return
+      ;;
+  esac
+  if [[ "$PWD" == "$work" || "$PWD" == "$work"/* ]]; then
+    command claude --add-dir "$work" --settings "$work/.claude/work.settings.json" "$@"
+  else
+    command claude --settings "$HOME/.claude/personal.settings.json" "$@"
+  fi
+}
+
 function git-prune-local() {
   git fetch -p && git branch -vv | grep ': gone]' | awk '{print $1}' | xargs git branch -D
 }

@@ -1,26 +1,20 @@
-# PHP
+# PHP / Laravel
 alias phpunit="vendor/bin/phpunit"
 alias a="php artisan"
-alias ar="php artisan remote"
-alias c="claude"
-alias cy="claude-yolo"
-alias cxy="codex --dangerously-bypass-approvals-and-sandbox"
+alias pa="php artisan"
+alias mfs='php artisan migrate:fresh --seed'
+alias pp="./vendor/bin/pest --parallel"
 alias cu="composer update"
 alias cr="composer require"
 alias ci="composer install"
 alias cda="composer dump-autoload -o"
-alias hostfile="sudo vi /etc/hosts"
-alias deploy='scotty run deploy'
-alias deploy-code='scotty run deploy-code'
-alias generate-newsletter='cloud command:run env-a2e13f80-ad47-4bb2-8161-a960a0dcbe0c --cmd="php artisan newsletter:generate"'
-alias mfs='php artisan migrate:fresh --seed'
-alias nah='git reset --hard;git clean -df'
 
-alias pp="./vendor/bin/pest --parallel"
-alias pt="./vendor/bin/pest --parallel --tia"
-alias sshconfig="vi ~/.ssh/config"
-alias copykey='command cat ~/.ssh/id_ed25519.pub 2>/dev/null || command cat ~/.ssh/id_rsa.pub 2>/dev/null | pbcopy'
-alias tunnel='valet share -subdomain=freekmurze -region=eu'
+# Claude Code / Codex
+alias c="claude"
+alias cy="claude-yolo"
+alias cxy="codex --dangerously-bypass-approvals-and-sandbox"
+# Second account (config in ~/.claude1)
+alias claude1='CLAUDE_CONFIG_DIR="$HOME/.claude1" command claude'
 
 # JavaScript
 alias jest="./node_modules/.bin/jest"
@@ -30,21 +24,15 @@ alias gpo="git push origin"
 alias push="git push"
 alias pull="git pull"
 alias uncommit="git reset --soft HEAD~1"
+alias nah='git reset --hard;git clean -df'
 
-# Fast open
+# Files & editors
 alias o='open "$PWD"'
-
-# List all files colorized in long format
 alias l="ls -laF"
-
-# PhpStorm
-alias phpstorm='open -a ~/Applications/PhpStorm.app "`pwd`"'
-
-# VS Code
-alias vscode='code "`pwd`"'
-
-# Zed
-alias zed='open -a /Applications/Zed.app "`pwd`"'
+alias vscode='code "$PWD"'
+alias hostfile="sudo vi /etc/hosts"
+alias sshconfig="vi ~/.ssh/config"
+alias copykey='{ command cat ~/.ssh/id_ed25519.pub 2>/dev/null || command cat ~/.ssh/sito8943.pub; } | pbcopy'
 
 # Redis
 alias flush-redis="redis-cli FLUSHALL"
@@ -55,39 +43,30 @@ alias hide="defaults write com.apple.finder AppleShowAllFiles -bool false && kil
 
 # IP addresses
 alias ip="curl ifconfig.me/ip ; echo"
-alias localip="ifconfig -a | grep -o 'inet6\? \(addr:\)\?\s\?\(\(\([0-9]\+\.\)\{3\}[0-9]\+\)\|[a-fA-F0-9:]\+\)' | awk '{ sub(/inet6? (addr:)? ?/, \"\"); print }'"
+alias localip="ipconfig getifaddr en0"
 
-# Flush Directory Service cache
+# Flush DNS cache
 alias flushdns="sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder"
 
 # Enable aliases to be sudo’ed
 alias sudo='sudo '
 
-# Modern CLI tool aliases (conditional on installation)
+# Games
+alias simutrans='cd "$HOME/Library/Application Support/Steam/steamapps/common/Simutrans" && ./simutrans.app/Contents/MacOS/simutrans'
+
+# Modern CLI tools (only when installed). grep is NOT aliased to rg on purpose:
+# scripts and copy-pasted commands expect real grep flags.
 if command -v eza &> /dev/null; then
-    # Conductor's terminal can't render eza's Nerd Font file icons (they show as
-    # tofu boxes), so drop --icons there. Other terminals keep the icons.
-    if [[ "$__CFBundleIdentifier" == "com.conductor.app" || -n "$CONDUCTOR_INTERNAL_BIN_DIR" ]]; then
-        eza_icons=""
-    else
-        eza_icons="--icons"
-    fi
-    alias ls="eza $eza_icons --group-directories-first"
-    alias l="eza -la $eza_icons --group-directories-first --hyperlink"
-    alias ll="eza -l $eza_icons --group-directories-first --hyperlink"
-    alias lt="eza --tree --level=2 $eza_icons"
-    unset eza_icons
+    alias ls="eza --icons --group-directories-first"
+    alias l="eza -la --icons --group-directories-first --hyperlink"
+    alias ll="eza -l --icons --group-directories-first --hyperlink"
+    alias lt="eza --tree --level=2 --icons"
 fi
 
 if command -v bat &> /dev/null; then
-    alias cat="bat --style=plain"
+    alias cat="bat --style=plain --paging=never"
 fi
 
-if command -v rg &> /dev/null; then
-    alias grep="rg"
-fi
-
-if command -v bottom &> /dev/null; then
+if command -v btm &> /dev/null; then
     alias htop="btm"
-    alias top="btm"
 fi

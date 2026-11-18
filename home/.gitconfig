@@ -1,12 +1,12 @@
+[user]
+	name = Sito8943
+	email = sito8943@gmail.com
+	username = Sito8943
+
 [core]
-	excludesfile = /Users/freek/.global-gitignore
+	excludesfile = ~/.global-gitignore
 	autocrlf = false
 	pager = delta
-
-[user]
-	name = Freek Van der Herten
-	email = freek@spatie.be
-	signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOd4zgKsJm1yDquP2+Ca7nZqUiJ2aZNwxJHP9gg3teWQ
 
 [filter "lfs"]
 	required = true
@@ -22,15 +22,6 @@
 
 [init]
 	defaultBranch = main
-
-[gpg]
-	format = ssh
-
-[gpg "ssh"]
-	program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
-
-[commit]
-	gpgsign = true
 
 [push]
 	autoSetupRemote = true
@@ -49,9 +40,15 @@
 
 [diff]
 	colorMoved = default
+
+# GitHub auth through gh (no plaintext tokens in ~/.git-credentials)
 [credential "https://github.com"]
-	helper = 
+	helper =
 	helper = !/opt/homebrew/bin/gh auth git-credential
 [credential "https://gist.github.com"]
-	helper = 
+	helper =
 	helper = !/opt/homebrew/bin/gh auth git-credential
+
+# Machine-only overrides (signing key, work email per folder, ...)
+[include]
+	path = ~/.dotfiles-custom/.gitconfig
