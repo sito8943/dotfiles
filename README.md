@@ -52,8 +52,8 @@ Personal dotfiles with modern shell tooling, optimized for Laravel/PHP developme
 ## Quick Start
 
 ```bash
-git clone git@github.com:sito8943/dotfiles.git ~/Documents/thirdparty/dotfiles
-cd ~/Documents/thirdparty/dotfiles
+git clone git@github.com:sito8943/dotfiles.git ~/.dotfiles   # not under ~/Documents: macOS blocks the login autosync there
+cd ~/.dotfiles
 bin/install --dry-run   # see what would change
 bin/install             # asks before every section, backs up to ~/.dotfiles-backup/
 ```
