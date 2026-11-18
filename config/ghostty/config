@@ -17,7 +17,8 @@ window-padding-y = 6
 macos-titlebar-style = tabs
 
 # Scrollback
-scrollback-limit = 50000
+# En bytes, no líneas (~10 MB)
+scrollback-limit = 10000000
 
 # Tema oscuro (cambia con: ghostty +list-themes)
 theme = "Catppuccin Mocha"
