@@ -52,10 +52,16 @@ Personal dotfiles with modern shell tooling, optimized for Laravel/PHP developme
 ## Quick Start
 
 ```bash
-git clone git@github.com:freekmurze/dotfiles.git ~/.dotfiles
-cd ~/.dotfiles
-bin/install
+git clone git@github.com:sito8943/dotfiles.git ~/Documents/thirdparty/dotfiles
+cd ~/Documents/thirdparty/dotfiles
+bin/install --dry-run   # see what would change
+bin/install             # asks before every section, backs up to ~/.dotfiles-backup/
 ```
+
+> **This fork (mac-sito):** PHP & Composer via Homebrew, Node via nvm, Java via SDKMAN, oh-my-zsh
+> `robbyrussell` + autosuggestions/syntax-highlighting. The installer links `~/.dotfiles` to the
+> checkout, never touches `~/.claude/settings.json` or your existing skills, and puts
+> machine-only settings in `~/.dotfiles-custom/`. Sections below describe upstream (Freek's) setup.
 
 ---
 

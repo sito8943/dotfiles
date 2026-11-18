@@ -30,7 +30,9 @@ error() { echo -e "${RED}✗${NC} $1"; exit 1; }
 # usual candidates. Paths that already live outside the index (~/Library/Caches,
 # ~/Library/Containers, /opt/homebrew) need no marker.
 EXCLUDED_DIRS=(
-    "$HOME/Library/Application Support/com.tinyapp.DBngin"
+    "$HOME/Library/Android/sdk"
+    "$HOME/.gradle"
+    "$HOME/.m2"
 )
 
 echo ""

@@ -1,119 +1,96 @@
 #!/bin/bash
 #
-# Standalone Claude Code installation script
-# Can be run independently or as part of full dotfiles setup
+# Claude Code setup. Safe to re-run; can run on its own or from bin/install.
+#
+# What it manages (symlinks, originals backed up first):
+#   ~/.claude/CLAUDE.md               ← config/claude/AGENTS.md (global instructions)
+#   ~/.claude/personal.settings.json  ← config/claude/personal.settings.json
+#   ~/.claude/statusline-command.sh   ← config/claude/statusline-command.sh
+#
+# What it never touches:
+#   ~/.claude/settings.json  apps (Claude Code, Sito Editor, plugins) rewrite it in
+#                            place, and it holds machine/work paths; keep it local.
+#   ~/.claude/skills, ~/.claude/agents  your installed skills stay as they are.
+#                            Repo skills are linked one by one only if you say yes.
+#
+# Env: DRY_RUN=1 prints actions only; ASSUME_YES=1 skips questions.
 
-set -e
+set -euo pipefail
 
-# Colors
-BLUE='\033[0;34m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m'
+DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SRC="$DOTFILES/config/claude"
+BACKUP_DIR="$HOME/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)"
+DRY_RUN="${DRY_RUN:-0}"
+ASSUME_YES="${ASSUME_YES:-0}"
 
-step() { echo ""; echo -e "${BLUE}➜${NC} $1"; }
+BLUE='\033[0;34m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
+step()    { echo ""; echo -e "${BLUE}➜${NC} $1"; }
 success() { echo -e "${GREEN}✓${NC} $1"; }
-warn() { echo -e "${YELLOW}⚠${NC} $1"; }
-error() { echo -e "${RED}✗${NC} $1"; exit 1; }
+warn()    { echo -e "${YELLOW}⚠${NC} $1"; }
 
-echo ""
-echo "Claude Code Installation"
-echo "========================"
-echo ""
+run() { if [ "$DRY_RUN" = 1 ]; then echo "  [dry-run] $*"; else "$@"; fi; }
 
-# Install Claude Code
-step "Installing Claude Code CLI"
-if command -v claude &>/dev/null; then
-    warn "Claude Code already installed"
-else
-    # Try Homebrew first (modern)
-    if command -v brew &>/dev/null; then
-        brew install --cask claude-code || warn "Claude Code installation failed"
-    else
-        # Fallback to curl installer
-        warn "Homebrew not found, using curl installer"
-        curl -fsSL https://claude.ai/install.sh | bash || warn "Claude Code installation failed"
-    fi
-fi
-success "Claude Code processed"
-
-# Check if running from dotfiles repo
-DOTFILES_DIR="$HOME/.dotfiles"
-if [ ! -d "$DOTFILES_DIR" ]; then
-    # Try to detect if script is in a dotfiles directory
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    if [ -f "$SCRIPT_DIR/../config/claude/AGENTS.md" ]; then
-        DOTFILES_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-    fi
-fi
-
-# Claude configuration
-if [ -d "$DOTFILES_DIR/config/claude" ]; then
-    step "Setting up Claude Code configuration"
-    mkdir -p ~/.claude
-
-    # Symlink configuration files
-    # Claude Code reads a project's AGENTS.md natively (v2.1.277+), but user-level
-    # instructions still have to live at ~/.claude/CLAUDE.md, so that gets a symlink
-    # under the name it expects. Codex reads AGENTS.md directly. One file, both harnesses.
-    ln -sf "$DOTFILES_DIR/config/claude/AGENTS.md" ~/.claude/CLAUDE.md
-    ln -sf "$DOTFILES_DIR/config/claude/settings.json" ~/.claude/settings.json
-    ln -sf "$DOTFILES_DIR/config/claude/statusline.sh" ~/.claude/statusline.sh
-
-    # Symlink entire skills directory
-    rm -rf ~/.claude/skills
-    ln -sf "$DOTFILES_DIR/config/claude/skills" ~/.claude/skills
-
-    # Symlink entire agents directory
-    rm -rf ~/.claude/agents
-    ln -sf "$DOTFILES_DIR/config/claude/agents" ~/.claude/agents
-
-    # Scoped plugins are enabled per workspace. Only wire up a workspace that
-    # already exists, so a fresh machine is not littered with empty directories.
-    MUSIC_DIR="${MUSIC_DIR:-$HOME/dev/code/music}"
-    if [ -d "$MUSIC_DIR" ] && [ ! -f "$MUSIC_DIR/.claude/settings.json" ]; then
-        mkdir -p "$MUSIC_DIR/.claude"
-        cat > "$MUSIC_DIR/.claude/settings.json" <<'JSON'
-{
-  "enabledPlugins": {
-    "music@skills-dir": true
-  }
-}
-JSON
-        success "Enabled music@skills-dir in $MUSIC_DIR"
-    fi
-
-    # Share the harness-neutral skills with Codex and any other SKILL.md reader.
-    if [ -x "$DOTFILES_DIR/bin/link-agent-skills" ]; then
-        DOTFILES_DIR="$DOTFILES_DIR" "$DOTFILES_DIR/bin/link-agent-skills"
-    fi
-
-    if [ -x "$DOTFILES_DIR/bin/install-agent-skill-sync" ]; then
-        DOTFILES_DIR="$DOTFILES_DIR" "$DOTFILES_DIR/bin/install-agent-skill-sync"
-    fi
-
-    success "Claude Code configured"
-else
-    warn "Dotfiles directory not found, skipping configuration"
-    echo "  To set up configuration later, clone dotfiles to ~/.dotfiles"
-fi
-
-# Agent Skills (included in dotfiles)
-# All skills are version-controlled in config/claude/skills/
-# No need to install them - they're symlinked from the dotfiles repo
-
-# Done
-echo ""
-success "Claude Code setup complete!"
-echo ""
-step "Next steps:"
-if [ ! -d "$DOTFILES_DIR/config/claude" ]; then
-    echo "  • Clone dotfiles for custom configuration:"
-    echo "    git clone https://github.com/freekmurze/dotfiles.git ~/.dotfiles"
-    echo "    ~/.dotfiles/bin/install-claude-code"
+ask() {
+    [ "$ASSUME_YES" = 1 ] && return 0
+    local reply
+    read -r -p "$1 (y/n) " -n 1 reply
     echo ""
+    [[ $reply =~ ^[Yy]$ ]]
+}
+
+link() {
+    local source="$1" target="$2"
+    if [ -L "$target" ] && [ "$(readlink "$target")" = "$source" ]; then
+        echo "  = ${target/#$HOME/\~}"
+        return
+    fi
+    if [ -e "$target" ] || [ -L "$target" ]; then
+        local rel="${target#$HOME/}"
+        run mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
+        run mv "$target" "$BACKUP_DIR/$rel"
+        echo "  ↺ backed up ${target/#$HOME/\~}"
+    fi
+    run mkdir -p "$(dirname "$target")"
+    run ln -s "$source" "$target"
+    echo "  → ${target/#$HOME/\~}"
+}
+
+# ── CLI ──────────────────────────────────────────────────────────────────────
+step "Claude Code CLI"
+if command -v claude &>/dev/null || [ -x "$HOME/.local/bin/claude" ]; then
+    success "Already installed"
+else
+    run bash -c 'curl -fsSL https://claude.ai/install.sh | bash' || warn "Install failed"
 fi
-echo "  • Start using: claude"
-echo "  • Discover more skills: https://skills.sh"
+
+# ── Config files ─────────────────────────────────────────────────────────────
+step "Claude config files"
+link "$SRC/AGENTS.md"               "$HOME/.claude/CLAUDE.md"
+link "$SRC/personal.settings.json"  "$HOME/.claude/personal.settings.json"
+link "$SRC/statusline-command.sh"   "$HOME/.claude/statusline-command.sh"
+success "Config linked (settings.json left untouched)"
+
+# ── Optional: repo skills/agents, one link each, never replacing yours ───────
+step "Repo skills & agents"
+if ask "Link skills/agents from config/claude that you don't already have?"; then
+    for kind in skills agents; do
+        [ -d "$SRC/$kind" ] || continue
+        run mkdir -p "$HOME/.claude/$kind"
+        for item in "$SRC/$kind"/*; do
+            name="$(basename "$item")"
+            target="$HOME/.claude/$kind/$name"
+            if [ -e "$target" ] || [ -L "$target" ]; then
+                continue
+            fi
+            run ln -s "$item" "$target"
+            echo "  + $kind/$name"
+        done
+    done
+    success "Missing skills/agents linked"
+else
+    warn "Skipped"
+fi
+
 echo ""
+[ -d "$BACKUP_DIR" ] && echo "  Backups: ${BACKUP_DIR/#$HOME/~}"
+success "Claude Code setup complete"
