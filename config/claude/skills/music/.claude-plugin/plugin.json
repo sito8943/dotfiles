@@ -1,9 +1,0 @@
-{
-  "name": "music",
-  "description": "Ableton Live control skills",
-  "version": "1.0.0",
-  "defaultEnabled": false,
-  "author": {
-    "name": "Freek Van der Herten"
-  }
-}
