@@ -118,7 +118,7 @@ function claude() {
       ;;
   esac
   if [[ "$PWD" == "$work" || "$PWD" == "$work"/* ]]; then
-    command claude --add-dir "$work" --settings "$work/.claude/work.settings.json" "$@"
+    command claude --add-dir "$work" --settings "$work/.claude/work.settings.json" --mcp-config "$work/.claude/work.mcp.json" "$@"
   else
     command claude --settings "$HOME/.claude/personal.settings.json" "$@"
   fi
